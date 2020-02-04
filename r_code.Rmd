@@ -1,0 +1,284 @@
+---
+title: "Data_replication_1_code"
+author: "shan zhang"
+date: "1/31/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(here) 
+library(tidyverse)
+library(httr) 
+library(readxl)
+library(dplyr)
+library(janitor)
+library(gsubfn)
+library(ggplot2)
+library(lubridate)
+library(gtools)
+library(data.table)
+library(questionr)
+library(tidyr)
+library(ggthemes)
+library(countrycode)
+library(forcats)
+library(plotly)
+library(broom)
+```
+
+
+
+##Q1
+
+a. There is an outcome Y1 which is the treatment outcomes for everyone. There is an
+outcome Y0 which is the control outcomes for everyone. There is an treatment variable D which indicates whether individuals are in the treatment group (or control group). Make a histogram comparing the treatment and control outcomes for the treatment group, and then comparing the treatment and control outcomes for the control group.
+
+```{r}
+Q1 = read.csv(here::here("/data/Better_Late_Than_Never.csv"))
+
+Q_t = Q1 %>%
+  filter(D==1)
+  ggplot(Q_t) +
+geom_histogram(aes(Y1, fill="blue", alpha=0.5), binwidth = 0.5, ) +
+  geom_histogram(aes(Y0, fill = "red", alpha = 0.5), binwidth = 0.5) +
+    ggtitle("Treatment and Control Outcomes in Treatment Group ")
+
+
+Q_c = Q1 %>%
+  filter(D == 0)
+ggplot(Q_c)+
+geom_histogram(aes(Y1, fill="blue", alpha=0.5), binwidth = 0.5, ) +
+  geom_histogram(aes(Y0, fill = "red", alpha = 0.5), binwidth = 0.5) +
+  ggtitle("Treatment and Control Outcomes in Control Group")
+
+
+```
+
+
+b. Now make a histogram comparing the treatment outcomes for the treatment group, and the control outcomes for the control group. How does the compare to your histograms for part a? Why?
+```{r}
+ggplot() + 
+    geom_histogram(data = Q_t,aes(Y1,fill = "blue", alpha = 0.5),binwidth = 0.5) + 
+    geom_histogram(data = Q_c,aes(Y0,fill = "red", alpha = 0.5),binwidth = 0.5) 
+
+```
+
+c. Finally, calculate the actual ATE by finding the average difference between Y1 and Y0 for the entire population.
+```{r}
+avg_treat = Q_t %>% summarise(mean(Y1))
+avg_control = Q_c %>% summarise(mean(Y0))
+ATE = avg_treat - avg_control
+ATE
+```
+
+
+d. How does this compare to the coefficient from a linear regression where you only observe the Y1 outcome for treatment, Y0 for control, and a D variable for whether you are in treatment. What does this tell you about the importance of random assignment?
+```{r}
+Q_t$ Y0 = 0
+Q_c$ Y1 = 0
+Q2 =  bind_rows(Q_t,Q_c)
+lm1 = lm(Q_t$Y1 ~ Q_t$T )
+lm2 = lm(Q1$y ~ Q1$D)
+tidy(lm1)
+tidy(lm2)
+```
+
+
+
+
+##Q2
+Suppose you are thinking about running an experiment. You hope to study whether assignment to Ben Hansen’s metrics increases the odds of finding a job over taking Glen Waddell’s class. The odd’s of finding a job coming out of Glen’s class is 70 percent.
+
+a If you want a minimal detectable effect of increasing the odds of finding a job by 5 percent, how big would the entire sample need to be (assume the odds of ending up in either class if 50/50)?
+```{r}
+
+```
+
+
+
+b What is your minimal detectable effect if you have a sample size of 1000?
+
+```{r}
+
+```
+
+
+
+
+
+## Q3 
+
+a. Create a histogram of the running variable, BAC. Make sure you do it allowing for discrete bins. Is there evidence of clear sorting at the threshold?
+
+```{r upload data}
+BAC = read.csv(here::here("/data/BAC_deiden.csv"))
+```
+
+a. Create a histogram of the running variable, BAC. Make sure you do it allowing for discrete bins. Is there evidence of clear sorting at the threshold?
+
+```{r}
+
+ggplot(BAC)+
+  geom_histogram(aes(run,alpha=0.7), binwidth = 10)
+```
+
+
+
+b. Next run a regression discontinuity model. To do so, create a dummy variable for a BAC over .08. Include that dummy variable, and the rescaled BAC (BAC-.08) as a control, and also include an interaction between that dummy variable and the running variable in model. First use age, gender, accident at the scene and race as outcomes. Do those factors shift at .08?
+
+```{r pressure, echo=FALSE}
+BAC_local = BAC %>%
+  subset(run > 29 & run < 131) %>%
+  mutate(run_d = ifelse(run>=80,1,0)) %>%
+  mutate(run = run -80) %>%
+  mutate(run_inter = run * run_d)
+
+
+```
+
+c. Now run a regression of recidivism on the same regression discontinuity design. What is your estimated effect using a bandwidth of .05, and a rectangular kernel (no weighting). Create a visualization of this by graphing the mean recidivism rate against the running variable. Show this for the whole BAC distribution, and the range from .03 to .13. Please include a fitted line.
+
+```{r}
+lm_rd = lm(recidivism ~ run + run_inter + run_d, data = BAC_local, bandwidth=5, kernel="rectangular" )
+tidy(lm_rd, conf.int = TRUE)
+
+duimean <- BAC_local %>% 
+  group_by(run) %>% 
+   summarize(mean_recid = mean(recidivism, na.rm= TRUE))
+
+duimean = duimean %>%
+  mutate(run=run + 80) %>%
+  mutate (dui = ifelse(run>=80,1,0)) 
+
+ggplot(data=duimean, aes(x = run, y = mean_recid, colour=factor(dui)))+
+  geom_point()+
+  geom_vline(xintercept = 80) +
+  stat_smooth( method = "lm", formula = y ~ x )
+
+
+  
+```
+
+d.Do the same thing as part D but for the aggravated threshold of .151.
+
+```{r}
+
+BAC_local_151 = BAC %>%
+  subset(run > 100 & run < 200) %>%
+  mutate(run_d = ifelse(run>=151,1,0)) %>%
+  mutate(run = run -151) %>%
+  mutate(run_inter = run * run_d)
+
+duimean_151 <- BAC_local_151 %>% 
+  group_by(run) %>% 
+   summarize(mean_recid = mean(recidivism, na.rm= TRUE))
+
+duimean_151 = duimean_151 %>%
+  mutate(run=run + 151) %>%
+  mutate (dui = ifelse(run>=151,1,0)) 
+
+ggplot(data=duimean_151, aes(x = run, y = mean_recid, colour=factor(dui)))+
+  geom_point()+
+  geom_vline(xintercept = 151) +
+  stat_smooth( method = "lm", formula = y ~ x )
+```
+
+e.Now run this model for every possible bandwidth between .01 and .07. Store both the point estimates and lower and upper confidence intervals. Create a scatter plot of the confidence interval and the point estimates. Are the estimates robust? Create a visualization of this.
+
+
+```{r}
+
+Data_sum = data.frame(
+  var = numeric(0),
+  estimate = numeric(0),
+  std_error = numeric(0),
+  stat = numeric(0),
+  p_value = numeric(0),
+  conf_low = numeric(0),
+  conf_high = numeric(0)
+)
+
+for (i in seq(10,70,1)){
+  data = subset(BAC_local, run > 0 - i & run < 0 +i)
+  b = lm(recidivism ~ run + run_d + run*run_d + aged + male +acc + white, data) %>%
+  tidy(conf.int = TRUE)
+  b=b[2,1:7]
+  Data_sum = rbind(Data_sum, b)
+    
+}
+Data_sum$term =10:70
+
+ggplot(Data_sum,aes(x = term, y = estimate)) +
+  geom_point() +
+  labs(x = "Bandwidth", y = "Estimate")
+
+
+
+ggplot(Data_sum,aes(x = term, y = conf.low)) +
+  geom_point() +
+  labs(x = "Bandwidth", y = "Confidence_interval_low")
+
+
+ggplot(Data_sum,aes(x = term, y = conf.high)) +
+  geom_point() +
+  labs(x = "Bandwidth", y = "Confidence_interval_high")
+
+```
+
+
+
+```{r}
+
+Data_sum_151 = data.frame(
+  var = numeric(0),
+  estimate = numeric(0),
+  std_error = numeric(0),
+  stat = numeric(0),
+  p_value = numeric(0),
+  conf_low = numeric(0),
+  conf_high = numeric(0)
+)
+
+
+
+
+for (i in seq(10,70,1)){
+  data = subset(BAC_local_151, run > 0 - i & run < 0 +i)
+  b = lm(recidivism ~ run + run_d + run*run_d + aged + male +acc + white, data) %>%
+  tidy(conf.int = TRUE)
+  b=b[2,1:7]
+  Data_sum_151 = rbind(Data_sum_151, b)
+}
+
+
+Data_sum_151$term =10:70
+
+ggplot(Data_sum_151,aes(x = term, y = estimate)) +
+  geom_point() +
+  labs(x = "Bandwidth", y = "Estimate")
+
+
+
+ggplot(Data_sum_151,aes(x = term, y = conf.low)) +
+  geom_point() +
+  labs(x = "Bandwidth", y = "Confidence_interval_low")
+
+
+ggplot(Data_sum_151,aes(x = term, y = conf.high)) +
+  geom_point() +
+  labs(x = "Bandwidth", y = "Confidence_interval_high")
+
+
+
+
+   
+```
+
+
+
+
+
+
+
+
+
