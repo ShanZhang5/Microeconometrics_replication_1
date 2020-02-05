@@ -187,6 +187,11 @@ e.Now run this model for every possible bandwidth between .01 and .07. Store bot
 
 
 ```{r}
+BAC_loop = BAC %>%
+   mutate(run_d = ifelse(run>=80,1,0)) %>%
+  mutate(run_inter = run * run_d)
+
+
 
 Data_sum = data.frame(
   var = numeric(0),
@@ -199,7 +204,7 @@ Data_sum = data.frame(
 )
 
 for (i in seq(10,70,1)){
-  data = subset(BAC_local, run > 0 - i & run < 0 +i)
+  data = subset(BAC_loop, run > 80 - i & run < 80 +i)
   b = lm(recidivism ~ run + run_d + run*run_d + aged + male +acc + white, data) %>%
   tidy(conf.int = TRUE)
   b=b[2,1:7]
@@ -229,6 +234,10 @@ ggplot(Data_sum,aes(x = term, y = conf.high)) +
 
 ```{r}
 
+BAC_loop_151 = BAC %>%
+   mutate(run_d = ifelse(run>=151,1,0)) %>%
+  mutate(run_inter = run * run_d)
+
 Data_sum_151 = data.frame(
   var = numeric(0),
   estimate = numeric(0),
@@ -243,7 +252,7 @@ Data_sum_151 = data.frame(
 
 
 for (i in seq(10,70,1)){
-  data = subset(BAC_local_151, run > 0 - i & run < 0 +i)
+  data = subset(BAC_loop, run > 151 - i & run < 151 +i)
   b = lm(recidivism ~ run + run_d + run*run_d + aged + male +acc + white, data) %>%
   tidy(conf.int = TRUE)
   b=b[2,1:7]
