@@ -39,7 +39,7 @@ Q1 = read.csv(here::here("/data/Better_Late_Than_Never.csv"))
 Q_t = Q1 %>%
   filter(D==1)
   ggplot(Q_t) +
-geom_histogram(aes(Y1, fill="blue", alpha=0.5), binwidth = 0.5, ) +
+geom_histogram(aes(Y1, fill = "blue", alpha=0.5), binwidth = 0.5, ) +
   geom_histogram(aes(Y0, fill = "red", alpha = 0.5), binwidth = 0.5) +
     ggtitle("Treatment and Control Outcomes in Treatment Group ")
 
@@ -59,9 +59,15 @@ b. Now make a histogram comparing the treatment outcomes for the treatment group
 ```{r}
 ggplot() + 
     geom_histogram(data = Q_t,aes(Y1,fill = "blue", alpha = 0.5),binwidth = 0.5) + 
-    geom_histogram(data = Q_c,aes(Y0,fill = "red", alpha = 0.5),binwidth = 0.5) 
+    geom_histogram(data = Q_c,aes(Y0,fill = "red", alpha = 0.5),binwidth = 0.5)  +
+  ggtitle("Treatment Outcomes in Treatment Group and Control Outcomes in Control Group")
+
 
 ```
+
+**This histogram is similar to the histograms in part a. The mean of treatment group is a little above 1 and the mean of control group is around 0.From this result we know that this experiment has been randomly assigned.**
+
+
 
 c. Finally, calculate the actual ATE by finding the average difference between Y1 and Y0 for the entire population.
 ```{r}
@@ -77,30 +83,33 @@ d. How does this compare to the coefficient from a linear regression where you o
 Q_t$ Y0 = 0
 Q_c$ Y1 = 0
 Q2 =  bind_rows(Q_t,Q_c)
-lm1 = lm(Q_t$Y1 ~ Q_t$T )
 lm2 = lm(Q1$y ~ Q1$D)
-tidy(lm1)
 tidy(lm2)
 ```
 
-
+**When we have random assignment, the coefficient(estimate) of treatment effect is the actual ATE and there is no selection bias.**
 
 
 ##Q2
 Suppose you are thinking about running an experiment. You hope to study whether assignment to Ben Hansen’s metrics increases the odds of finding a job over taking Glen Waddell’s class. The odd’s of finding a job coming out of Glen’s class is 70 percent.
 
 a If you want a minimal detectable effect of increasing the odds of finding a job by 5 percent, how big would the entire sample need to be (assume the odds of ending up in either class if 50/50)?
-```{r}
 
-```
 
+**$\beta_{MDE} = (t_{\frac{\alpha}{2}}+t_{1-k})\sqrt(\frac{V(u)}{\overline{D}(1-\overline{D})N})$
+Since $(t_{\frac{\alpha}{2}}+t_{1-k})=2.8$
+And $\beta_{MDE} = 0.05$, u follows a bernoulli distribution, $V(u) = 0.7*0.3=0.21$
+$1-\overline{D}=0.5$
+Plug into the equation and solve for N, we get N=2635.**
 
 
 b What is your minimal detectable effect if you have a sample size of 1000?
 
-```{r}
-
-```
+**$\beta_{MDE} = (t_{\frac{\alpha}{2}}+t_{1-k})\sqrt(\frac{V(u)}{\overline{D}(1-\overline{D})N})$
+Since $(t_{\frac{\alpha}{2}}+t_{1-k})=2.8$
+And $N = 1000$, u follows a bernoulli distribution, $V(u) = 0.7*0.3=0.21$
+$1-\overline{D}=0.5$
+Plug into the equation and solve for $\beta_{MDE}$, we get $\beta_{MDE}=0.081.$**
 
 
 
@@ -108,7 +117,6 @@ b What is your minimal detectable effect if you have a sample size of 1000?
 
 ## Q3 
 
-a. Create a histogram of the running variable, BAC. Make sure you do it allowing for discrete bins. Is there evidence of clear sorting at the threshold?
 
 ```{r upload data}
 BAC = read.csv(here::here("/data/BAC_deiden.csv"))
@@ -119,10 +127,10 @@ a. Create a histogram of the running variable, BAC. Make sure you do it allowing
 ```{r}
 
 ggplot(BAC)+
-  geom_histogram(aes(run,alpha=0.7), binwidth = 10)
+  geom_histogram(aes(run,alpha=0.7,fill = "pink"), binwidth = 10)
 ```
 
-
+**From the histogram, I see some distinct jumps after 60 to 100.**
 
 b. Next run a regression discontinuity model. To do so, create a dummy variable for a BAC over .08. Include that dummy variable, and the rescaled BAC (BAC-.08) as a control, and also include an interaction between that dummy variable and the running variable in model. First use age, gender, accident at the scene and race as outcomes. Do those factors shift at .08?
 
@@ -133,8 +141,23 @@ BAC_local = BAC %>%
   mutate(run = run -80) %>%
   mutate(run_inter = run * run_d)
 
+lm_race = lm (white ~  run_d + run + run_inter, data= BAC_local)
+tidy(lm_race)
+
+lm_age = lm (aged ~  run_d + run + run_inter, data= BAC_local)
+tidy(lm_age)
+
+lm_gender = lm (male ~  run_d + run + run_inter, data= BAC_local)
+tidy(lm_gender)
+
+lm_acc = lm (acc ~  run_d + run + run_inter, data= BAC_local)
+tidy(lm_acc)
 
 ```
+
+
+
+**Those factors do not shift at 0.08 since the coefficient estimates on both dummy and the interaction term are insignificant.**
 
 c. Now run a regression of recidivism on the same regression discontinuity design. What is your estimated effect using a bandwidth of .05, and a rectangular kernel (no weighting). Create a visualization of this by graphing the mean recidivism rate against the running variable. Show this for the whole BAC distribution, and the range from .03 to .13. Please include a fitted line.
 
@@ -186,10 +209,12 @@ ggplot(data=duimean_151, aes(x = run, y = mean_recid, colour=factor(dui)))+
 e.Now run this model for every possible bandwidth between .01 and .07. Store both the point estimates and lower and upper confidence intervals. Create a scatter plot of the confidence interval and the point estimates. Are the estimates robust? Create a visualization of this.
 
 
-```{r}
+```{r, warning = FALSE }
 BAC_loop = BAC %>%
    mutate(run_d = ifelse(run>=80,1,0)) %>%
-  mutate(run_inter = run * run_d)
+  mutate(run_r = run - 80) %>%
+  mutate(run_inter = run_r * run_d)
+
 
 
 
@@ -204,8 +229,8 @@ Data_sum = data.frame(
 )
 
 for (i in seq(10,70,1)){
-  data = subset(BAC_loop, run > 80 - i & run < 80 +i)
-  b = lm(recidivism ~ run + run_d + run*run_d + aged + male +acc + white, data) %>%
+  data = subset(BAC_loop, run > 79 - i & run < 81 +i)
+  b = lm(recidivism ~ run_r + run_d + run_inter + aged + male +acc + white, data,kernel= "Rectangular") %>%
   tidy(conf.int = TRUE)
   b=b[2,1:7]
   Data_sum = rbind(Data_sum, b)
@@ -214,28 +239,21 @@ for (i in seq(10,70,1)){
 Data_sum$term =10:70
 
 ggplot(Data_sum,aes(x = term, y = estimate)) +
-  geom_point() +
+  geom_point(aes(x = term, y = estimate),color = "blue") +
+  geom_point(aes(x = term, y = conf.high), color = "orange") +
+  geom_point(aes(x = term, y = conf.low), color = "orange") +
   labs(x = "Bandwidth", y = "Estimate")
 
 
-
-ggplot(Data_sum,aes(x = term, y = conf.low)) +
-  geom_point() +
-  labs(x = "Bandwidth", y = "Confidence_interval_low")
-
-
-ggplot(Data_sum,aes(x = term, y = conf.high)) +
-  geom_point() +
-  labs(x = "Bandwidth", y = "Confidence_interval_high")
-
 ```
 
+**
 
-
-```{r}
+```{r, warning = FALSE}
 
 BAC_loop_151 = BAC %>%
    mutate(run_d = ifelse(run>=151,1,0)) %>%
+  mutate(run_r = run - 151) %>%
   mutate(run_inter = run * run_d)
 
 Data_sum_151 = data.frame(
@@ -252,8 +270,8 @@ Data_sum_151 = data.frame(
 
 
 for (i in seq(10,70,1)){
-  data = subset(BAC_loop, run > 151 - i & run < 151 +i)
-  b = lm(recidivism ~ run + run_d + run*run_d + aged + male +acc + white, data) %>%
+  data = subset(BAC_loop_151, run > 150 - i & run < 152 +i)
+  b = lm(recidivism ~ run_r + run_d + run_inter + aged + male +acc + white, data) %>%
   tidy(conf.int = TRUE)
   b=b[2,1:7]
   Data_sum_151 = rbind(Data_sum_151, b)
@@ -263,19 +281,11 @@ for (i in seq(10,70,1)){
 Data_sum_151$term =10:70
 
 ggplot(Data_sum_151,aes(x = term, y = estimate)) +
-  geom_point() +
+    geom_point(aes(x = term, y = estimate),color = "blue") +
+  geom_point(aes(x = term, y = conf.high), color = "orange") +
+  geom_point(aes(x = term, y = conf.low), color = "orange") +
   labs(x = "Bandwidth", y = "Estimate")
 
-
-
-ggplot(Data_sum_151,aes(x = term, y = conf.low)) +
-  geom_point() +
-  labs(x = "Bandwidth", y = "Confidence_interval_low")
-
-
-ggplot(Data_sum_151,aes(x = term, y = conf.high)) +
-  geom_point() +
-  labs(x = "Bandwidth", y = "Confidence_interval_high")
 
 
 
@@ -286,7 +296,7 @@ ggplot(Data_sum_151,aes(x = term, y = conf.high)) +
 
 
 
-
+**The orange points are upper and lower bounds of estimates and the blue points are estimates. From the scatter plots we can see, after bandwidth = 40, the estimates are more and more consistant(robust). Intuitively, when we have a very small bandwidth(sample), our variance is higher than the variance with a wider bandwidth.**
 
 
 
