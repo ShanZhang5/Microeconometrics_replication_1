@@ -2,7 +2,9 @@
 title: "Data_replication_1_code"
 author: "shan zhang"
 date: "1/31/2020"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -130,7 +132,7 @@ ggplot(BAC)+
   geom_histogram(aes(run,alpha=0.7,fill = "pink"), binwidth = 10)
 ```
 
-**From the histogram, I see some distinct jumps after 60 to 100.**
+**From the histogram, I see some distinct jumps after 60 to 100.But I don't see evidence for clear shorting at threshold.**
 
 b. Next run a regression discontinuity model. To do so, create a dummy variable for a BAC over .08. Include that dummy variable, and the rescaled BAC (BAC-.08) as a control, and also include an interaction between that dummy variable and the running variable in model. First use age, gender, accident at the scene and race as outcomes. Do those factors shift at .08?
 
